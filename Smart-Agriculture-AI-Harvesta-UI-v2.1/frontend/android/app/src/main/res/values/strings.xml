@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Harvesta</string>
+    <string name="title_activity_main">Harvesta</string>
+    <string name="package_name">com.harvesta.smartagriculture</string>
+    <string name="custom_url_scheme">com.harvesta.smartagriculture</string>
+</resources>

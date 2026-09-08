@@ -1,0 +1,59 @@
+# Render Blueprint for Smart Agriculture AI Platform
+# Deploy via Render Dashboard -> New -> Blueprint -> select this repository.
+#
+# SECURITY: Values marked sync:false are prompted for securely in the Render
+# dashboard at deploy time and are never stored in this file or Git.
+#
+# NOTE ON PATHS:
+# The backend module is `backend.app.main:app` and MUST be started from the
+# repository root (Root Directory left empty), because the ML model loader
+# (backend/app/services/ai_service.py) resolves ml/models/ relative to the
+# repository root and adds it to sys.path.
+
+services:
+  - type: web
+    name: smart-agriculture-api
+    runtime: python
+    plan: free
+    rootDir: .
+    buildCommand: pip install --upgrade pip && pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      # --- Supabase PostgreSQL (paste the pooler URL in Render) ---
+      - key: DATABASE_URL
+        sync: false
+
+      # --- Secrets (values entered in Render dashboard) ---
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+
+      # --- Non-secret configuration ---
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_DELIVERY_ENABLED
+        value: "true"
+      - key: SMTP_FROM_EMAIL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: SUPABASE_STORAGE_ENABLED
+        value: "true"
+      - key: SUPABASE_STORAGE_BUCKET
+        value: crop-disease-scans
+      - key: SUPABASE_STORAGE_REQUIRED
+        value: "true"
+      # Render cannot run a large Ollama model on its free web service.
+      # The deterministic offline assistant remains available there.
+      - key: LOCAL_AI_MODE
+        value: offline

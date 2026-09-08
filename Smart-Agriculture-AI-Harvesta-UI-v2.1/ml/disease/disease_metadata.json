@@ -1,0 +1,154 @@
+{
+  "model_version": "harvesta-disease-vision-v1.0",
+  "dataset_reference": "Synthetic development images using a 10-class taxonomy inspired by PlantVillage; not trained on the official PlantVillage photographs",
+  "input_size": [128, 128],
+  "classes": [
+    "Tomato___Healthy",
+    "Tomato___Early_Blight",
+    "Tomato___Late_Blight",
+    "Tomato___Leaf_Mold",
+    "Potato___Healthy",
+    "Potato___Early_Blight",
+    "Potato___Late_Blight",
+    "Corn___Healthy",
+    "Corn___Common_Rust",
+    "Pepper___Healthy"
+  ],
+  "disease_info": {
+    "Tomato___Healthy": {
+      "display_name": "Healthy Tomato Leaf",
+      "crop": "Tomato",
+      "disease": "Healthy",
+      "is_healthy": true,
+      "urgency": "LOW",
+      "description": "Foliage exhibits uniform chlorophyll pigmentation, healthy cellular turgor, and no visible fungal or bacterial lesions.",
+      "recommendations": [
+        "Maintain regular irrigation and nutrient feeding schedule.",
+        "Continue routine canopy scouting every 5 to 7 days.",
+        "Ensure adequate air circulation between rows as canopy densifies."
+      ]
+    },
+    "Tomato___Early_Blight": {
+      "display_name": "Tomato Early Blight (Alternaria solani)",
+      "crop": "Tomato",
+      "disease": "Early Blight",
+      "is_healthy": false,
+      "urgency": "MEDIUM",
+      "description": "Characterized by concentric ringed brown lesions ('target spots') on older, lower leaves often surrounded by chlorotic yellow halos.",
+      "recommendations": [
+        "Prune and safely destroy heavily infected lower leaves to reduce fungal spore load.",
+        "Avoid overhead irrigation; water at soil level to minimize leaf wetness duration.",
+        "Apply organic mulch around plant bases to prevent soil-to-leaf spore splash.",
+        "Consult local agricultural extension service for recommended bio-fungicide or copper spray protocols if spreading."
+      ]
+    },
+    "Tomato___Late_Blight": {
+      "display_name": "Tomato Late Blight (Phytophthora infestans)",
+      "crop": "Tomato",
+      "disease": "Late Blight",
+      "is_healthy": false,
+      "urgency": "HIGH",
+      "description": "Aggressive water-soaked, dark irregular lesions rapidly expanding on leaves and stems, often with white fungal sporulation under humid conditions.",
+      "recommendations": [
+        "Immediate isolation: remove and bag severely infected plants to prevent wind-borne spread across the field.",
+        "Eliminate overhead watering and maximize inter-plant airflow.",
+        "Sanitize all pruning tools with 70% alcohol or dilute bleach solution between rows.",
+        "Urgent: Contact a certified agronomist or extension specialist immediately for localized protective treatment."
+      ]
+    },
+    "Tomato___Leaf_Mold": {
+      "display_name": "Tomato Leaf Mold (Passalora fulva)",
+      "crop": "Tomato",
+      "disease": "Leaf Mold",
+      "is_healthy": false,
+      "urgency": "MEDIUM",
+      "description": "Pale yellow or light green spots on upper leaf surfaces matching olive-green to brown velvety fungal patches on leaf undersides.",
+      "recommendations": [
+        "Reduce greenhouse or canopy relative humidity below 85% with increased ventilation.",
+        "Prune lower canopy suckers and overcrowded foliage to facilitate rapid drying.",
+        "Space future plantings wider to prevent persistent high-humidity microclimates."
+      ]
+    },
+    "Potato___Healthy": {
+      "display_name": "Healthy Potato Leaf",
+      "crop": "Potato",
+      "disease": "Healthy",
+      "is_healthy": true,
+      "urgency": "LOW",
+      "description": "Vibrant green potato foliage showing normal venation, balanced moisture, and absence of necrotic spotting.",
+      "recommendations": [
+        "Maintain steady soil moisture, especially during tuber initiation and bulking stages.",
+        "Scout foliage weekly for emerging pest or fungal pressure.",
+        "Ensure proper hilling to protect developing tubers from sun exposure."
+      ]
+    },
+    "Potato___Early_Blight": {
+      "display_name": "Potato Early Blight (Alternaria solani)",
+      "crop": "Potato",
+      "disease": "Early Blight",
+      "is_healthy": false,
+      "urgency": "MEDIUM",
+      "description": "Dark brown circular spots with characteristic concentric rings appearing primarily on mature foliage, leading to premature senescence.",
+      "recommendations": [
+        "Avoid overhead irrigation and ensure morning-only watering to allow foliage to dry completely before nightfall.",
+        "Maintain balanced potassium and nitrogen levels to prevent early crop stress.",
+        "Remove crop debris after harvest and practice at least a 2-year crop rotation with non-solanaceous crops."
+      ]
+    },
+    "Potato___Late_Blight": {
+      "display_name": "Potato Late Blight (Phytophthora infestans)",
+      "crop": "Potato",
+      "disease": "Late Blight",
+      "is_healthy": false,
+      "urgency": "HIGH",
+      "description": "Water-soaked dark lesions that rapidly turn necrotic under cool, wet weather. Can rapidly destroy entire foliage and rot tubers.",
+      "recommendations": [
+        "Urgent field scouting: monitor nearby fields and check lower canopy leaves.",
+        "Destroy cull piles and remove infected foliage immediately.",
+        "Delay harvesting if foliage is infected until vines are completely dead and dry to protect tubers.",
+        "Consult local agricultural extension advisory for region-specific blight alerts and interventions."
+      ]
+    },
+    "Corn___Healthy": {
+      "display_name": "Healthy Maize / Corn Foliage",
+      "crop": "Maize",
+      "disease": "Healthy",
+      "is_healthy": true,
+      "urgency": "LOW",
+      "description": "Vigorous, deep green maize leaf tissue free of rust pustules, blights, or leaf streaks.",
+      "recommendations": [
+        "Continue balanced nitrogen side-dressing aligned with vegetative growth stages.",
+        "Monitor soil moisture during tasseling and silking stages.",
+        "Maintain standard weed suppression along field margins."
+      ]
+    },
+    "Corn___Common_Rust": {
+      "display_name": "Corn Common Rust (Puccinia sorghi)",
+      "crop": "Maize",
+      "disease": "Common Rust",
+      "is_healthy": false,
+      "urgency": "MEDIUM",
+      "description": "Small, powdery cinnamon-brown to reddish pustules scattered over both upper and lower leaf surfaces.",
+      "recommendations": [
+        "Assess rust pustule density relative to the crop growth stage (damage is highest prior to silking).",
+        "Select rust-resistant hybrid varieties for future planting cycles.",
+        "Maintain crop vigor with adequate fertilization to mitigate yield impact.",
+        "Seek agronomist advice if pustules spread heavily across upper ear leaves early in the season."
+      ]
+    },
+    "Pepper___Healthy": {
+      "display_name": "Healthy Bell Pepper Leaf",
+      "crop": "Pepper",
+      "disease": "Healthy",
+      "is_healthy": true,
+      "urgency": "LOW",
+      "description": "Smooth, glossy green pepper foliage without bacterial speckling, mosaic mottling, or wilt symptoms.",
+      "recommendations": [
+        "Maintain consistent drip irrigation to avoid blossom-end rot and plant stress.",
+        "Ensure balanced calcium and magnesium nutrition.",
+        "Scout weekly for aphid or thrip vectors on young growing tips."
+      ]
+    }
+  },
+  "disclaimer": "Smart Agriculture AI Harvesta crop disease screening is an artificial intelligence assistance tool for early symptom identification and educational guidance. It is not an authoritative diagnostic certificate or chemical prescription. Always verify severe or uncertain crop health conditions with a qualified local agronomist or extension specialist."
+}

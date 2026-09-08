@@ -1,0 +1,6 @@
+crop_type,optimal_temperature_min,optimal_temperature_max,optimal_humidity_min,optimal_humidity_max,optimal_soil_ph_min,optimal_soil_ph_max,water_requirement,growth_period_days
+Rice,20.0,35.0,60.0,90.0,5.5,7.0,High,120
+Tomato,18.0,29.0,50.0,70.0,6.0,7.0,Medium,90
+Maize,18.0,32.0,50.0,80.0,5.8,7.2,Medium,110
+Cotton,21.0,35.0,40.0,70.0,5.8,8.0,Medium,160
+Wheat,12.0,25.0,45.0,70.0,6.0,7.5,Low,130

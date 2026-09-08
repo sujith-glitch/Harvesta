@@ -1,0 +1,30 @@
+{
+  "target": "soil_moisture",
+  "feature_names": [
+    "crop_type",
+    "temperature",
+    "humidity",
+    "rainfall",
+    "soil_ph",
+    "soil_temperature"
+  ],
+  "categorical_features": [
+    "crop_type"
+  ],
+  "numerical_features": [
+    "temperature",
+    "humidity",
+    "rainfall",
+    "soil_ph",
+    "soil_temperature"
+  ],
+  "selected_model": "Linear Regression",
+  "training_rows": 800,
+  "testing_rows": 200,
+  "MAE": 6.7616,
+  "RMSE": 8.4384,
+  "R2": 0.4838,
+  "random_state": 42,
+  "dataset_path": "data/processed/iot_sensor_data_clean.csv",
+  "note": "Synthetic IoT sensor dataset used for local architecture prototype development only."
+}

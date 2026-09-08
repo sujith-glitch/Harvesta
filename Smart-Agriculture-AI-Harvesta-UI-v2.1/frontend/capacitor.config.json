@@ -1,0 +1,8 @@
+{
+  "appId": "com.harvesta.smartagriculture",
+  "appName": "Harvesta",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}
