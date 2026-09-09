@@ -1390,8 +1390,10 @@ input, select, textarea, button {
   right: 24px;
   bottom: 92px;
   z-index: 49;
-  width: min(360px, calc(100vw - 32px));
-  max-height: min(440px, calc(100vh - 150px));
+  width: min(460px, calc(100vw - 32px));
+  max-height: min(620px, calc(100vh - 120px));
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   border-radius: 18px;
   background: #fff;
@@ -1416,10 +1418,12 @@ input, select, textarea, button {
 }
 .chat-response-messages {
   display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  max-height: 330px;
+  max-height: min(480px, calc(100vh - 250px));
   overflow-y: auto;
 }
 .chat-response-message {
@@ -1436,10 +1440,18 @@ input, select, textarea, button {
   background: var(--c-ink-900);
 }
 .chat-response-message.assistant {
+  max-width: 100%;
   align-self: flex-start;
   color: var(--c-ink-800);
   background: var(--c-ink-50);
 }
+.chat-rich-reply { display: flex; flex-direction: column; gap: 5px; }
+.chat-reply-heading { display: block; margin-top: 2px; color: var(--c-ink-900); font-size: 13px; line-height: 1.35; }
+.chat-reply-paragraph { display: block; }
+.chat-reply-bullet { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 3px; align-items: start; }
+.chat-reply-bullet > b { color: var(--c-leaf-500); font-weight: 800; }
+.chat-reply-spacer { display: block; height: 3px; }
+.chat-reply-note { display: block; margin-bottom: 7px; color: var(--c-ink-500); line-height: 1.35; }
 .chat-thinking { display: inline-flex; align-items: center; gap: 6px; }
 .chat-response-error {
   padding: 9px 11px;
@@ -2333,7 +2345,11 @@ input, select, textarea, button {
     left: 12px;
     width: auto;
     max-width: none;
+    max-height: calc(100svh - 170px);
   }
+
+  .chat-response-messages { min-height: 110px; max-height: none; }
+  .chat-response-message { font-size: 13px; line-height: 1.5; }
 
   .modal-overlay { padding: 12px; }
   .modal-content { padding: 18px; }

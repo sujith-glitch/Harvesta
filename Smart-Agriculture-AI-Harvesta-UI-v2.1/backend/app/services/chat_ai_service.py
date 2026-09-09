@@ -34,11 +34,13 @@ AGRONOMIST_SYSTEM_PROMPT = """You are the Harvesta AI Agronomist, an expert prec
 
 Your core operating principles:
 1. FOCUS: Focus strictly on agronomy, irrigation, crop health, soil moisture management, pest/disease prevention, and sustainable farming practices.
-2. FARMER-FIRST & PRACTICAL: Provide clear, concise, actionable guidance tailored to the farmer's specific crops and field conditions. Use farmer-friendly language with clear bullet points.
+2. FARMER-FIRST & PRACTICAL: Start with a direct answer, then give useful recommendations, the reason behind them, important checks, and one clear next step. Use farmer-friendly headings and bullet points.
 3. GROUNDED IN KNOWN DATA: Ground your responses in the farmer's real data provided in the context below. Distinguish observed telemetry from general agricultural principles.
 4. NO SENSOR FABRICATION: Do NOT invent unmeasured telemetry (e.g. do not fabricate NPK, electrical conductivity, or satellite NDVI values that are not present in the context).
 5. NON-PRESCRIPTIVE SCREENING: Treat all crop disease vision scan results as preliminary AI screening, not an authoritative chemical prescription or certification. For severe infestations or uncertain blights, explicitly encourage on-site consultation with a local agricultural extension specialist.
-6. CONCISE: Keep explanations focused, practical, and under 250-300 words unless the farmer asks for an in-depth breakdown."""
+6. USEFUL DEPTH: A simple greeting may be brief. For an agricultural question, normally give 140-260 useful words; do not stop after one or two vague sentences. Use up to 350 words when the farmer asks for detail.
+7. CROP CHOICE: Do not select a crop from the date alone. Consider location, season, soil, irrigation/water availability, crop duration, and current weather. If data is missing, give a clearly labelled preliminary shortlist and ask for the missing details.
+8. FORMAT: Use plain-text section headings and short bullets that display well on a phone. Avoid tables unless the user asks for one."""
 
 
 class ChatAIService:
@@ -66,7 +68,17 @@ class ChatAIService:
             ],
             "latest_field_analysis": {
                 "soil_moisture": latest.current_soil_moisture if latest else None,
+                "soil_ph": latest.soil_ph if latest else None,
+                "soil_temperature": latest.soil_temperature if latest else None,
                 "crop_type": latest.crop_type if latest else None,
+                "latitude": latest.latitude if latest else None,
+                "longitude": latest.longitude if latest else None,
+                "weather_temperature": latest.weather_temperature if latest else None,
+                "weather_humidity": latest.weather_humidity if latest else None,
+                "weather_precipitation": latest.weather_precipitation if latest else None,
+                "weather_wind_speed": latest.weather_wind_speed if latest else None,
+                "recommendation_status": latest.recommendation_status if latest else None,
+                "priority": latest.priority if latest else None,
                 "recorded_at": latest.created_at.isoformat(timespec="minutes") if latest and latest.created_at else None,
             },
         }
@@ -78,6 +90,14 @@ class ChatAIService:
             return max(1.0, min(15.0, float(os.getenv("CHAT_MODEL_TIMEOUT_SECONDS", "6"))))
         except ValueError:
             return 6.0
+
+    @staticmethod
+    def max_response_tokens() -> int:
+        """Keep detailed replies bounded while allowing more than a few lines."""
+        try:
+            return max(220, min(600, int(os.getenv("CHAT_MAX_RESPONSE_TOKENS", "360"))))
+        except ValueError:
+            return 360
 
     @staticmethod
     def build_farmer_context(
@@ -277,7 +297,7 @@ class ChatAIService:
                 provider.generate_chat_response(
                     messages=prompt_messages,
                     temperature=0.2,
-                    max_tokens=160,
+                    max_tokens=cls.max_response_tokens(),
                 ),
                 timeout=cls.model_timeout_seconds(),
             )

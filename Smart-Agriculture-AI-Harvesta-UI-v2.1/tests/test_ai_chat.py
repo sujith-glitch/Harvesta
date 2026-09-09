@@ -345,6 +345,75 @@ def test_common_farming_questions_are_supported_by_instant_local_knowledge():
     assert LocalAIService.can_answer_instantly("Write a detailed business plan for my farm") is False
     assert LocalAIService.can_answer_instantly("What is the crop status?") is True
     assert LocalAIService.can_answer_instantly("What is the crip status") is True
+    assert LocalAIService.can_answer_instantly("Which type of crop can we plant today?") is True
+    assert LocalAIService.is_crop_selection_question("What disease affects my crop?") is False
+    assert LocalAIService.is_crop_selection_question("What fertilizer is best for tomato crop?") is False
+    assert LocalAIService.is_crop_selection_question("How should I plant tomato seedlings?") is False
+    assert LocalAIService.is_crop_selection_question("Suggest irrigation for my crop") is False
+
+
+def test_fast_crop_selection_reply_is_detailed_structured_and_context_aware():
+    reply = LocalAIService.generate_offline_reply(
+        "Which crop can I plant today?",
+        {
+            "crops": ["Tomato"],
+            "latest_field_analysis": {
+                "crop_type": "Tomato",
+                "soil_moisture": 35,
+                "soil_ph": 6.5,
+                "recorded_at": "2026-09-08T10:00",
+            },
+        },
+        language="en",
+    )["content"]
+
+    assert len(reply) >= 800
+    assert "Useful starting groups" in reply
+    assert "Check before buying seed" in reply
+    assert "Registered crops: Tomato" in reply
+    assert "soil moisture 35.0%" in reply
+    assert "Next step" in reply
+
+
+def test_detailed_model_output_cap_is_configurable_and_bounded(monkeypatch):
+    monkeypatch.setenv("CHAT_MAX_RESPONSE_TOKENS", "520")
+    assert ChatAIService.max_response_tokens() == 520
+    monkeypatch.setenv("CHAT_MAX_RESPONSE_TOKENS", "9999")
+    assert ChatAIService.max_response_tokens() == 600
+    monkeypatch.setenv("CHAT_MAX_RESPONSE_TOKENS", "invalid")
+    assert ChatAIService.max_response_tokens() == 360
+
+
+def test_tanglish_crop_selection_reply_is_detailed_and_keeps_roman_script():
+    reply = LocalAIService.generate_offline_reply(
+        "ennaku innaikku enna crop podanum suggest pannu",
+        {},
+        language="ta",
+    )["content"]
+    assert len(reply) >= 700
+    assert "Seed vaangurathukku munadi" in reply
+    assert "Next step" in reply
+    assert not any("\u0B80" <= char <= "\u0BFF" for char in reply)
+
+
+def test_detailed_turn_passes_configured_output_budget(monkeypatch):
+    _, headers = create_test_farmer("response_budget")
+    provider = get_llm_provider(force_new=True)
+    monkeypatch.setenv("LOCAL_AI_MODE", "auto")
+    monkeypatch.setenv("CHAT_MAX_RESPONSE_TOKENS", "420")
+    with patch.object(
+        provider,
+        "generate_chat_response",
+        new_callable=AsyncMock,
+        return_value={"content": "Structured answer", "model": provider.default_model},
+    ) as llm:
+        response = client.post(
+            "/api/chat/messages",
+            json={"message": "Explain crop rotation planning in detail"},
+            headers=headers,
+        )
+    assert response.status_code == 200
+    assert llm.await_args.kwargs["max_tokens"] == 420
 
 
 def test_first_turn_is_one_request_and_one_commit_with_local_status(monkeypatch):

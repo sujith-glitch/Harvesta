@@ -1189,7 +1189,7 @@ export async function sendChatMessage(conversationId, message, { signal } = {}) 
       id: Date.now() + 1,
       conversation_id: Number(conversationId),
       role: 'assistant',
-      content: `Here is agricultural guidance for your query: "${message}". In precision farming, maintaining steady root-zone moisture and adequate canopy aeration is key to maximizing crop yield.`,
+      content: `Harvesta guidance\nYour question: “${message}”\n\nRecommended checks\n- Confirm the crop and growth stage.\n- Check root-zone moisture, recent rain, soil drainage, and current symptoms.\n- Compare any sensor value with a fresh field observation before acting.\n\nNext step\nAdd your district, crop, soil type, and latest reading so I can narrow the recommendation. Demo guidance does not use live farm data.`,
       model_name: 'qwen2.5-coder:7b (demo)',
       created_at: new Date().toISOString(),
     };

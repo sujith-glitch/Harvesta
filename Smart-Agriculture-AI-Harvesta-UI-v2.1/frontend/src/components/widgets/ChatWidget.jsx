@@ -3,6 +3,22 @@ import { ArrowUp, Loader2, Mic, MicOff, Volume2, Waves, X } from 'lucide-react';
 import { sendChatMessage } from '../../services/api';
 import { usePreferences } from '../../context/PreferencesContext';
 import { createVoiceSession, voiceSetupError } from '../../utils/voiceChat';
+import { formatChatReply } from '../../utils/chatReplyFormat';
+
+function ChatReplyContent({ content }) {
+  return (
+    <div className="chat-rich-reply">
+      {formatChatReply(content).map((block) => {
+        if (block.type === 'spacer') return <span key={block.key} className="chat-reply-spacer" aria-hidden="true" />;
+        if (block.type === 'heading') return <strong key={block.key} className="chat-reply-heading">{block.text}</strong>;
+        if (block.type === 'bullet') {
+          return <span key={block.key} className="chat-reply-bullet"><b>{block.marker}</b><span>{block.text}</span></span>;
+        }
+        return <span key={block.key} className="chat-reply-paragraph">{block.text}</span>;
+      })}
+    </div>
+  );
+}
 
 export default function ChatWidget() {
   const { preferences, speechLocale, t } = usePreferences();
@@ -169,8 +185,8 @@ export default function ChatWidget() {
             <button type="button" onClick={stopVoiceMode}><MicOff size={15} />{t('endVoice')}</button>
           </div>}
           <div className="chat-response-messages">
-            {messages.slice(-6).map((message) => <div key={message.id} className={`chat-response-message ${message.role === 'user' ? 'user' : 'assistant'}`}>{message.fallbackReason && <small className="chat-reply-note">Quick local guidance — the detailed AI model {message.fallbackReason === 'model_timeout' ? 'was too slow' : 'is unavailable'}.<br /></small>}{message.content}</div>)}
-            {isSending && <div className="chat-response-message assistant chat-thinking"><Loader2 size={13} className="animate-spin" />{isSlow ? 'Still waiting for the server. Checking saved farm data…' : t('preparingAnswer')}</div>}
+            {messages.slice(-6).map((message) => <div key={message.id} className={`chat-response-message ${message.role === 'user' ? 'user' : 'assistant'}`}>{message.fallbackReason && <small className="chat-reply-note">Fast local guidance — the detailed AI model {message.fallbackReason === 'model_timeout' ? 'was too slow' : 'is unavailable'}.<br /></small>}{message.role === 'assistant' ? <ChatReplyContent content={message.content} /> : message.content}</div>)}
+            {isSending && <div className="chat-response-message assistant chat-thinking"><Loader2 size={13} className="animate-spin" />{isSlow ? 'Preparing detailed farm guidance…' : t('preparingAnswer')}</div>}
             {error && <div className="chat-response-error">{error}</div>}
           </div>
           <p>{t('aiDisclaimer')}</p>

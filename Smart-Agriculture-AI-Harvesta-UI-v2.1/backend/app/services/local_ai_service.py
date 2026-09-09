@@ -17,8 +17,11 @@ logger = logging.getLogger(__name__)
 
 
 SYSTEM_PROMPT = """You are Harvesta, a cautious local-first farming assistant.
-Use the farmer's supplied farm context when it is relevant. Give short,
-practical answers with observations, next checks, and clear uncertainty.
+Use the farmer's supplied farm context when it is relevant. Give a direct answer,
+practical recommendations, reasons, important checks, and one useful next step.
+For agricultural questions, provide enough detail to be genuinely useful instead
+of stopping after one or two sentences. Prefer short headings and bullet points
+that are easy to read on a phone.
 Never claim that an image prediction or sensor estimate is a confirmed
 diagnosis. Do not invent pesticide names, dosages, legal approvals, weather
 facts, or sensor readings. Recommend a qualified local agronomist for severe,
@@ -52,6 +55,11 @@ class LocalAIService:
         "temperature",
         "wind",
         "climate",
+        "pest",
+        "insect",
+        "weed",
+        "fertil",
+        "compost",
         "நோய்",
         "இலை",
         "தண்ணீர்",
@@ -105,7 +113,7 @@ class LocalAIService:
 
     @staticmethod
     def _model_name() -> str:
-        return os.getenv("OLLAMA_MODEL", "gemma3:4b").strip() or "gemma3:4b"
+        return os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b").strip() or "qwen2.5-coder:7b"
 
     @staticmethod
     def _mode() -> str:
@@ -209,6 +217,8 @@ class LocalAIService:
             return True
         if any(phrase in clean for phrase in ("what can you do", "how can you help", "help me")):
             return True
+        if cls.is_crop_selection_question(clean):
+            return True
         if cls.is_crop_status_question(clean):
             return True
         return any(term in clean for term in cls._INSTANT_TOPIC_TERMS)
@@ -219,6 +229,22 @@ class LocalAIService:
         clean = (message or "").lower()
         return bool(re.search(r"\b(crop|crops|crip|farm|field)\b", clean) and
                     re.search(r"\b(status|doing|condition|health|update)\b", clean))
+
+    @staticmethod
+    def is_crop_selection_question(message: str) -> bool:
+        """Recognize common requests for choosing what to sow or plant."""
+        clean = (message or "").lower()
+        patterns = (
+            r"\b(?:which|what|best)\s+(?:type\s+of\s+)?(?:crop|crops|seed|seeds|vegetable|vegetables)\b",
+            r"\b(?:recommend|suggest|choose)\s+(?:a\s+|some\s+)?(?:crop|crops|seed|seeds|vegetable|vegetables)\b",
+            r"\b(?:crop|crops|seed|seeds|vegetable|vegetables)\b.{0,35}\b(?:should|can|to)\b.{0,15}\b(?:plant|sow|grow)\b",
+            r"\b(?:what|which)\b.{0,25}\b(?:plant|sow|grow)\b.{0,25}\b(?:today|now|this season)\b",
+            r"\b(?:plant|sow|grow)\b.{0,25}\b(?:today|now|this season)\b",
+            r"\b(?:enna|entha|endha)\s+(?:crop|seed)\b",
+            r"\b(?:crop|seed)\b.{0,25}\b(?:podalam|podanum|vidaikalam|vidhaikalam)\b",
+            r"(?:என்ன|எந்த)\s+(?:பயிர்|விதை)",
+        )
+        return any(re.search(pattern, clean) for pattern in patterns)
 
     @classmethod
     def _generate_with_ollama(
@@ -279,8 +305,49 @@ class LocalAIService:
             return None
 
     @classmethod
+    def _saved_context_summary(cls, context: Dict[str, Any]) -> str:
+        """Build a compact, factual summary without inventing live readings."""
+        crops = [str(c) for c in context.get("crops", []) if c]
+        analysis = context.get("latest_field_analysis", {}) or {}
+        lines: List[str] = []
+        if crops:
+            lines.append(f"- Registered crops: {', '.join(crops[:5])}.")
+
+        analysis_parts: List[str] = []
+        if analysis.get("crop_type"):
+            analysis_parts.append(f"crop {analysis['crop_type']}")
+        for label, key, suffix in (
+            ("soil moisture", "soil_moisture", "%"),
+            ("soil pH", "soil_ph", ""),
+            ("soil temperature", "soil_temperature", "°C"),
+            ("air temperature", "weather_temperature", "°C"),
+            ("humidity", "weather_humidity", "%"),
+        ):
+            value = analysis.get(key)
+            try:
+                if value is not None:
+                    analysis_parts.append(f"{label} {float(value):.1f}{suffix}")
+            except (TypeError, ValueError):
+                continue
+        if analysis.get("recommendation_status"):
+            analysis_parts.append(f"result {analysis['recommendation_status']}")
+        if analysis_parts:
+            recorded = analysis.get("recorded_at") or "date not recorded"
+            lines.append(f"- Latest saved analysis ({recorded}): {', '.join(analysis_parts)}.")
+
+        latitude = analysis.get("latitude")
+        longitude = analysis.get("longitude")
+        if latitude is not None and longitude is not None:
+            try:
+                lines.append(f"- Saved analysis location: {float(latitude):.4f}, {float(longitude):.4f}.")
+            except (TypeError, ValueError):
+                pass
+
+        return "\n".join(lines) if lines else "- No recent farm, crop, or sensor data is saved yet."
+
+    @classmethod
     def _offline_reply(cls, message: str, context: Dict[str, Any], language: str = "en") -> str:
-        """Small deterministic fallback for common farmer questions."""
+        """Fast structured fallback for common farmer questions."""
         clean = re.sub(r"\s+", " ", message.strip())
         lower = clean.lower()
         crops = [str(c) for c in context.get("crops", []) if c]
@@ -289,21 +356,85 @@ class LocalAIService:
         if not clean:
             return "Please type a question about irrigation, soil, crop health, weather, or a leaf photo."
 
+        saved_context = cls._saved_context_summary(context)
+
         # Localized zero-network guidance keeps voice and text chat useful even
         # when the larger local model is not running.
         if language == "ta":
-            if any(term in lower for term in ("disease", "leaf", "spot", "photo", "image", "noi", "ilai", "நோய்", "இலை")):
+            uses_tamil_script = bool(re.search(r"[\u0B80-\u0BFF]", clean))
+            if cls.is_crop_selection_question(clean):
+                if not uses_tamil_script:
+                    return (
+                        "Indhaikku enna crop podalam — preliminary guidance\n"
+                        "Date mattum vachu best crop select panna safe illa. District, season/rain, soil type, water availability, crop duration, market ellame consider pannanum.\n\n"
+                        "Start panna koodiya groups\n"
+                        "- Water kammi na local millet illa maize varieties-a check pannunga.\n"
+                        "- Drainage correct-a irundha green gram, black gram, groundnut sowing window-a local-a confirm pannunga.\n"
+                        "- Small irrigated plot-ku okra, chilli, tomato, keerai/coriander consider pannalam; nursery and weather protection crop-ku crop maarum.\n\n"
+                        "Seed vaangurathukku munadi\n"
+                        "1. District agriculture office/local trusted seed supplier-kitta current sowing window confirm pannunga.\n"
+                        "2. Soil drainage, reliable water, expected rain, crop duration, market demand compare pannunga.\n"
+                        "3. Pudhu crop/variety-na small plot-la first trial pannunga.\n\n"
+                        f"Harvesta-la save aana data\n{saved_context}\n\n"
+                        "Next step\nUnga district/state, soil type, rain-fed illa irrigated, land size, harvest eppo venum-nu sollunga. Appo naan 2–3 suitable crops shortlist panni reason-oda solren."
+                    )
                 return (
-                    "நோய் கண்டறிதல் பகுதியில் பகல் வெளிச்சத்தில் எடுத்த தெளிவான இலையின் படத்தை பதிவேற்றுங்கள். "
-                    "இது முதற்கட்ட AI பரிசோதனை மட்டுமே. பாதிப்பு வேகமாகப் பரவினால் உள்ளூர் வேளாண் நிபுணரை அணுகுங்கள்."
+                    "இன்று எந்தப் பயிரைத் தேர்வு செய்வது — முதற்கட்ட வழிகாட்டல்\n"
+                    "தேதி மட்டும் வைத்து சிறந்த பயிரைத் தேர்வு செய்வது பாதுகாப்பானது அல்ல. மாவட்டம், பருவமழை, மண் வகை, நீர் வசதி, பயிர் காலம் மற்றும் சந்தை தேவையை சேர்த்து பார்க்க வேண்டும்.\n\n"
+                    "தொடக்கத் தேர்வுகள்\n"
+                    "- நீர் குறைவாக இருந்தால் உள்ளூருக்கு ஏற்ற சிறுதானியம் அல்லது மக்காச்சோளம் பற்றி விசாரிக்கவும்.\n"
+                    "- நல்ல வடிகால் இருந்தால் பாசிப்பயறு, உளுந்து அல்லது நிலக்கடலையின் விதைப்பு காலத்தை உள்ளூரில் உறுதிசெய்யவும்.\n"
+                    "- சிறிய பாசன நிலத்திற்கு வெண்டை, மிளகாய், தக்காளி அல்லது கீரை வகைகளை பரிசீலிக்கலாம்.\n\n"
+                    "அடுத்த படி\nஉங்கள் மாவட்டம், மண் வகை, பாசன வசதி, நில அளவு மற்றும் விரும்பும் அறுவடை காலத்தை கூறுங்கள். 2–3 பொருத்தமான பயிர்களை காரணத்துடன் குறுக்கிக் கூறுவேன்."
+                )
+            if any(term in lower for term in ("disease", "leaf", "spot", "photo", "image", "noi", "ilai", "நோய்", "இலை")):
+                if not uses_tamil_script:
+                    return (
+                        "Leaf problem check\n"
+                        "Disease Scan-la daylight-la clear close photo-um, whole leaf/plant pattern theriyura wide photo-um upload pannunga. Blur, filter, heavy shadow avoid pannunga.\n\n"
+                        "Field-la check pannunga\n"
+                        "- Old leaf-la start aacha illa young leaf-la start aacha?\n"
+                        "- Leaf backside, stem, insects, recent rain, irrigation, spray/fertilizer history note pannunga.\n"
+                        "- Fast-a spread aana affected plant/tools-a healthy row-kku move pannama careful-a handle pannunga.\n\n"
+                        "Important\nAI result preliminary screening mattum; confirmed diagnosis illa. Severe/fast spread-na local agronomist-a contact pannunga. Crop, growth stage, affected percentage, symptoms eppo start aachu-nu sollunga."
+                    )
+                return (
+                    "இலை அல்லது நோய் பரிசோதனை\n"
+                    "நோய் கண்டறிதல் பகுதியில் பகல் வெளிச்சத்தில் எடுத்த நெருக்கப் படத்தையும், முழு இலை/செடியைக் காட்டும் படத்தையும் பதிவேற்றுங்கள்.\n\n"
+                    "கவனிக்க வேண்டியது\n- அறிகுறி பழைய இலையிலா அல்லது இளம் இலையிலா தொடங்கியது?\n- இலையின் பின்பக்கம், தண்டு, பூச்சி, சமீபத்திய மழை மற்றும் தெளிப்பு வரலாற்றைப் பாருங்கள்.\n\n"
+                    "AI முடிவு முதற்கட்ட பரிசோதனை மட்டுமே; உறுதி செய்யப்பட்ட நோயறிதல் அல்ல. பாதிப்பு வேகமாகப் பரவினால் உள்ளூர் வேளாண் நிபுணரை அணுகுங்கள்."
                 )
             if any(term in lower for term in ("water", "moisture", "irrig", "thanni", "mazhai", "தண்ணீர்", "நீர்ப்பாசனம்")):
                 moisture = cls._latest_soil_moisture(context)
+                if not uses_tamil_script:
+                    saved = f"Latest saved soil moisture {moisture:.1f}%. " if moisture is not None else "Recent soil-moisture reading save aagala. "
+                    return (
+                        "Irrigation guidance\n"
+                        f"{saved}Idha mattum vachu water panna koodathu.\n\n"
+                        "Water panna munadi\n"
+                        "- Root depth-la moisture check pannunga; surface mattum paaka vendam.\n"
+                        "- Crop/stage, soil drainage, last rain, heat/wind, last irrigation time compare pannunga.\n"
+                        "- Unusual sensor value-na repeat check pannunga.\n\n"
+                        "Next step\nField Analysis-la latest values use pannunga. Crop, growth stage, soil type, moisture, last irrigation and rainfall details anuppunga; appo specific recommendation solren."
+                    )
                 saved = f"கடைசியாக சேமித்த மண் ஈரப்பதம் {moisture:.1f}%. " if moisture is not None else "சமீபத்திய மண் ஈரப்பதத் தகவல் இல்லை. "
-                return saved + "பயிரின் வளர்ச்சி நிலை, மண்ணின் தன்மை, சமீபத்திய மழை மற்றும் வேர் ஆழ ஈரப்பதத்தைச் சரிபார்த்து பின்னர் நீர்ப்பாசனம் செய்யுங்கள்."
+                return (
+                    "நீர்ப்பாசன வழிகாட்டல்\n"
+                    f"{saved}இந்த ஒரு அளவை மட்டும் வைத்து நீர்ப்பாசனம் செய்ய வேண்டாம்.\n\n"
+                    "நீர் விடுவதற்கு முன்\n- வேர் ஆழத்தில் ஈரப்பதத்தை அளவிடுங்கள்.\n- பயிர் வளர்ச்சி நிலை, மண் வடிகால், சமீபத்திய மழை, வெப்பம் மற்றும் கடைசியாக நீர் விட்ட நேரத்தை ஒப்பிடுங்கள்.\n- மாறுபட்ட சென்சார் மதிப்பை மீண்டும் சரிபார்க்கவும்.\n\n"
+                    "பயிர், வளர்ச்சி நிலை, மண் வகை மற்றும் சமீபத்திய அளவுகளை கூறினால் குறிப்பிட்ட வழிகாட்டல் தர முடியும்."
+                )
+            if not uses_tamil_script:
+                return (
+                    "Detailed farm guidance kudukka indha details venum\n"
+                    "- crop and growth stage;\n- district/location;\n- exact symptom illa decision;\n- recent rain/weather;\n- moisture, pH, NPK or temperature reading.\n\n"
+                    f"Harvesta-la save aana data\n{saved_context}\n\n"
+                    "Neenga Tanglish-la ketta naan Tanglish-la reply pannuven. Visible leaf problem-na Disease Scan use pannunga."
+                )
             return (
-                f"{crop_text} பற்றி உதவ முடியும். பயிர், வளர்ச்சி நிலை, நீங்கள் கவனித்த அறிகுறி, "
-                "சமீபத்திய வானிலை மற்றும் மண் அளவீட்டைச் சொல்லுங்கள். நீங்கள் Tanglish-ல் கேட்டாலும் அதே மொழியில் பதிலளிப்பேன்."
+                "விரிவான விவசாய வழிகாட்டலுக்கு கீழ்கண்ட தகவல்களை கூறுங்கள்:\n"
+                "- பயிர் மற்றும் வளர்ச்சி நிலை;\n- மாவட்டம்/இடம்;\n- துல்லியமான அறிகுறி அல்லது முடிவு;\n- சமீபத்திய மழை/வானிலை;\n- ஈரப்பதம், pH, NPK அல்லது வெப்பநிலை அளவு.\n\n"
+                "காணக்கூடிய இலைப் பிரச்சினைக்கு நோய் கண்டறிதல் பகுதியைப் பயன்படுத்தவும்."
             )
         localized_generic = {
             "hi": "मैं आपकी फसल, सिंचाई, मिट्टी और पौधों के स्वास्थ्य में मदद कर सकता हूँ। कृपया फसल, विकास चरण, लक्षण, हाल का मौसम और उपलब्ध मिट्टी रीडिंग बताइए।",
@@ -314,11 +445,34 @@ class LocalAIService:
         if language in localized_generic:
             return localized_generic[language]
 
+        if cls.is_crop_selection_question(clean):
+            return (
+                "Crop choice for today — preliminary guidance\n"
+                "I can shortlist crops, but the date alone is not enough to safely choose the best one. "
+                "District, current rainfall, soil type, irrigation supply, and the time available before harvest can change the answer.\n\n"
+                "Useful starting groups\n"
+                "- Cereals: maize or a locally suitable millet when water is limited; paddy only where the season and water supply support it.\n"
+                "- Pulses: green gram, black gram, or groundnut can be considered where drainage and the local sowing window fit.\n"
+                "- Vegetables: okra, chilli, tomato, leafy greens, or coriander may suit smaller irrigated plots, but nursery and heat/rain protection needs differ.\n\n"
+                "Check before buying seed\n"
+                "1. Confirm the local sowing window with your district agriculture office or a trusted local seed supplier.\n"
+                "2. Match the crop to soil drainage, reliable water, expected rain, market access, and crop duration.\n"
+                "3. Start with a small plot if the crop or variety is new to your farm.\n\n"
+                "Your saved Harvesta data\n"
+                f"{saved_context}\n\n"
+                "Next step\n"
+                "Send your district/state, soil type, irrigated or rain-fed condition, land size, and preferred harvest time. I can then narrow this to 2–3 crops and explain the best option."
+            )
+
         if any(term in lower for term in ("hello", "hi ", "hey", "what can you do")):
             return (
-                "I can help interpret your saved field readings, explain irrigation results, "
-                "suggest crop-health checks, and guide you through a leaf Disease Scan. "
-                f"Your current crop context is: {crop_text}. What would you like to check?"
+                "Hello — I am Harvesta AI. I can give detailed, practical help with:\n"
+                "- choosing crops using season, location, soil, and water availability;\n"
+                "- interpreting saved moisture, pH, weather, and field-analysis results;\n"
+                "- irrigation planning and crop-health checks;\n"
+                "- preparing a clear Disease Scan and explaining its screening result.\n\n"
+                "I separate saved measurements from general advice and I will tell you when important data is missing. "
+                f"Current crop context: {crop_text}. Ask a complete question such as, “Which crop should I plant?” or “Does my tomato field need irrigation?”"
             )
 
         if cls.is_crop_status_question(clean):
@@ -342,14 +496,27 @@ class LocalAIService:
                     f"{analysis.get('crop_type') or 'crop not recorded'}, soil moisture {moisture:.1f}%. "
                     "This is saved analysis data, not a live sensor reading."
                 )
-            return summary + "\nRun a fresh Field Analysis or use Disease Scan to check a leaf problem."
+            return (
+                f"Crop status summary\n{summary}\n\n"
+                "What this means\n"
+                "- A saved crop name or health label is not the same as a live field diagnosis.\n"
+                "- Use a fresh Field Analysis for soil/weather-based irrigation guidance.\n"
+                "- Use Disease Scan for visible leaf symptoms, and include the whole plant pattern when describing the problem.\n\n"
+                "Next step\nTell me which crop you want to inspect and what changed today—colour, spots, wilting, growth, pests, or soil moisture."
+            )
 
         if any(term in lower for term in ("disease", "leaf", "spot", "blight", "photo", "image")):
             return (
-                "Open Disease Scan and upload a clear photo of one leaf in daylight, including "
-                "both the affected area and some healthy tissue. The result is a screening signal, "
-                "not a confirmed diagnosis. Isolate fast-spreading symptoms, avoid moving wet tools "
-                "between plants, and confirm severe cases with a local agronomist before treatment."
+                "Leaf or disease check\n"
+                "Use Disease Scan with a clear daylight photo. Include one close photo of the affected area and one wider photo showing the leaf or plant pattern. Avoid blur, filters, heavy shadow, and a wet leaf surface.\n\n"
+                "While checking the crop\n"
+                "- Note whether symptoms began on old or young leaves and whether they are spreading plant-to-plant.\n"
+                "- Check the leaf underside, stem, nearby insects, recent rain, irrigation, and any recent spray or fertilizer.\n"
+                "- Isolate rapidly worsening plants when practical and clean tools before moving to healthy rows.\n\n"
+                "Important\n"
+                "The image result is preliminary AI screening, not a confirmed diagnosis or chemical prescription. "
+                "For rapid spread, severe wilting, stem rot, or major crop loss, contact a local agronomist before treatment.\n\n"
+                "Next step\nTell me the crop, growth stage, affected plant percentage, how long the symptom has been present, and what the spots or damage look like."
             )
 
         if any(term in lower for term in ("irrig", "water", "moisture", "dry")):
@@ -360,28 +527,62 @@ class LocalAIService:
                 else "I do not have a recent saved soil-moisture reading. "
             )
             return (
-                saved
-                + "Check moisture at the active root depth, recent rain, soil texture, crop stage, "
-                "and forecast before irrigating. Use the Field Analysis tool for a recorded recommendation; "
-                "do not irrigate from a single uncalibrated sensor reading alone."
+                "Irrigation guidance\n"
+                f"{saved}Treat it as one input, not the full decision.\n\n"
+                "Check before watering\n"
+                "- Measure moisture at the crop’s active root depth, not only at the surface.\n"
+                "- Consider crop and growth stage, soil texture and drainage, recent rain, heat, wind, and the next reliable forecast.\n"
+                "- Repeat an unusual sensor value or compare it with a simple hand/field check.\n\n"
+                "Practical next action\n"
+                "Run Field Analysis with the latest moisture, pH, soil temperature, and correct location. If irrigation is recommended, apply it in a controlled cycle and recheck the root zone rather than flooding from one reading.\n\n"
+                "Send the crop, growth stage, soil type, latest moisture value, last irrigation time, and recent rainfall for a more specific recommendation."
             )
 
         if any(term in lower for term in ("ph", "npk", "nitrogen", "phosph", "potassium", "soil")):
             return (
-                "Use a calibrated soil test and record the sample depth and field location. Compare pH and "
-                "nutrients with the specific crop and growth stage; a single generic target can be misleading. "
-                "Correct unusual readings only after repeating the test or confirming with a laboratory."
+                "Soil and nutrient guidance\n"
+                "Use a calibrated test and record the sample depth, field location, date, and whether fertilizer was recently applied. A single pH or NPK value without crop stage and sampling details can be misleading.\n\n"
+                "Recommended checks\n"
+                "- Take several representative samples instead of relying on one edge or wet spot.\n"
+                "- Compare pH and nutrients with the exact crop, variety, growth stage, and local soil recommendation.\n"
+                "- Repeat an unusual sensor result or confirm it through a soil laboratory before making a major correction.\n"
+                "- Record the change in Harvesta so later analyses can be compared.\n\n"
+                f"Saved context\n{saved_context}\n\n"
+                "Next step\nSend the crop, stage, soil type, pH, N-P-K readings with units, and last fertilizer date. I can explain which result needs attention first without inventing a dosage."
+            )
+
+        if any(term in lower for term in ("pest", "insect", "weed", "fertil", "compost")):
+            return (
+                "Crop management guidance\n"
+                "First identify the crop, growth stage, affected area, and exact symptom or pest. Check several plants across the field so one damaged plant does not represent the whole crop.\n\n"
+                "Safe next steps\n"
+                "- Photograph the damage, leaf underside, stem, and any visible insect.\n"
+                "- Record recent rain, irrigation, fertilizer, and spray history.\n"
+                "- Prefer prevention and locally approved integrated pest-management steps after identification.\n"
+                "- Do not mix or increase products from a chatbot suggestion; labels and local approvals vary.\n\n"
+                "For fast spread or heavy loss, take the photos and field history to a qualified local agronomist. Send me the crop, stage, symptom, affected percentage, and location for a more focused checklist."
             )
 
         if any(term in lower for term in ("weather", "rain", "temperature", "wind", "climate")):
             return (
-                "Use the live Field Analysis for the saved farm location. Check rainfall, temperature, humidity, "
-                "and wind together: high heat and wind can increase water loss, while rain may justify delaying "
-                "irrigation. I will not invent live weather when the weather service is unavailable."
+                "Weather-based farm guidance\n"
+                "Use Live Weather Field Analysis with the correct farm location. Temperature, humidity, rainfall, and wind should be read together: heat and wind can increase water loss; high humidity can slow drying; reliable rain may justify delaying irrigation.\n\n"
+                "Before acting\n"
+                "- Confirm that the displayed location and observation time are correct.\n"
+                "- Compare the forecast with soil moisture at root depth and the crop’s growth stage.\n"
+                "- Avoid spraying in unsuitable wind or immediately before expected rain, and follow the product label.\n\n"
+                f"Saved context\n{saved_context}\n\n"
+                "I will not invent live weather when the weather service is unavailable. Send your district, crop/stage, and the weather values shown in Harvesta for a specific interpretation."
             )
 
         return (
-            f"I can help with {crop_text}, but I need a little more detail. Tell me the crop, growth stage, "
-            "symptom or question, recent weather, and any soil/sensor reading you have. For a visible leaf "
-            "problem, use Disease Scan and share a clear photo."
+            "I can give a detailed farm recommendation, but the question needs a little more context.\n\n"
+            "Please send\n"
+            "- crop and growth stage;\n"
+            "- district/location and whether the field is irrigated or rain-fed;\n"
+            "- the exact symptom or decision you need help with;\n"
+            "- recent rain/weather and any moisture, pH, NPK, or temperature reading;\n"
+            "- how long the condition has been present and what you have already tried.\n\n"
+            f"Current saved context\n{saved_context}\n\n"
+            "For a visible leaf problem, use Disease Scan and share a clear photo. For crop selection, tell me your soil type, water availability, land size, and desired harvest period."
         )
