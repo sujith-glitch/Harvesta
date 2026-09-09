@@ -1,0 +1,11 @@
+{
+  "name": "harvesta-ai-platform",
+  "version": "2.1.0",
+  "private": true,
+  "description": "Smart Agriculture AI - Harvesta Platform",
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "preview": "npm --prefix frontend run preview"
+  }
+}
