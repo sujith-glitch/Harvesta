@@ -1,0 +1,6 @@
+{
+  "weather_history": {"file": "data/sample/weather_history.csv", "source": "NOAA Climate Data Online (schema-compatible starter sample)", "license": "Public domain", "retrieved": "2026-09-09", "fields": ["date", "temperature_c", "rainfall_mm", "humidity_pct", "wind_kph"]},
+  "soil_crop_suitability": {"file": "data/sample/soil_crop_suitability.csv", "source": "FAO crop suitability concepts (starter sample)", "license": "FAO data terms; verify source before production use", "retrieved": "2026-09-09", "fields": ["crop", "soil_type", "ph_min", "ph_max", "moisture_min_pct", "temperature_min_c", "temperature_max_c"]},
+  "pest_reference": {"file": "data/sample/pest_reference.csv", "source": "CABI crop protection concepts (starter sample)", "license": "Reference-only starter content", "retrieved": "2026-09-09", "fields": ["crop", "pest", "symptoms", "prevention"]},
+  "fertilizer_reference": {"file": "data/sample/fertilizer_reference.csv", "source": "FAO nutrient management concepts (starter sample)", "license": "Reference-only starter content", "retrieved": "2026-09-09", "fields": ["crop", "nutrient", "application_stage", "guidance"]}
+}

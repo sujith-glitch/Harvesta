@@ -1,0 +1,5 @@
+crop,soil_type,ph_min,ph_max,moisture_min_pct,temperature_min_c,temperature_max_c
+Tomato,loam,5.5,7.0,45,18,30
+Maize,loam,5.8,7.2,40,18,32
+Rice,clay,5.0,7.5,65,20,35
+Groundnut,sandy_loam,6.0,7.5,35,21,30

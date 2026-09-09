@@ -25,3 +25,6 @@ This directory contains datasets used by the Smart Agriculture AI Platform divid
 
 > [!NOTE]
 > All sample datasets in `data/sample/` are synthetic/simulated for software architecture development.
+# Dataset registry
+
+The files in `sample/` are compact, schema-compatible starter data for development and demos. They are not a substitute for local agronomy calibration. Provenance, licensing notes, and required fields are recorded in `manifests/datasets.json`. Large source archives and private data must remain outside Git; import them through a reviewed preprocessing step.
