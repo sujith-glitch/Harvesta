@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import os
+import json
+from pathlib import Path
 
 from backend.app.database import Base, engine, sync_database_schema
 from backend.app.routes.ai import router as ai_router
@@ -96,3 +98,9 @@ def get_health():
         "status": "ok",
         "service": "Smart Agriculture AI Platform"
     }
+
+@app.get("/api/data-catalog")
+def get_data_catalog():
+    """Return public provenance metadata for the bundled starter datasets."""
+    manifest_path = Path(__file__).resolve().parents[2] / "data" / "manifests" / "datasets.json"
+    return {"datasets": json.loads(manifest_path.read_text(encoding="utf-8"))}
