@@ -1,1 +1,20 @@
 /* App-specific overrides - design system now lives in index.css with Tailwind */
+
+.dashboard-motion-layer {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(244, 248, 225, .8), rgba(235, 241, 222, .55));
+}
+.dashboard-motion-content { position: relative; z-index: 2; }
+.motion-ring, .motion-orb { position: absolute; pointer-events: none; z-index: 0; }
+.motion-ring { border: 3px solid rgba(91, 145, 61, .12); border-radius: 50%; animation: harvesta-float 12s ease-in-out infinite; }
+.motion-ring-one { width: 360px; height: 360px; left: 30%; top: -110px; }
+.motion-ring-two { width: 230px; height: 230px; right: 8%; top: 18%; animation-delay: -4s; }
+.motion-orb { width: 18px; height: 18px; border-radius: 50%; background: rgba(205, 224, 47, .7); box-shadow: 0 0 0 9px rgba(205, 224, 47, .14), 0 0 24px rgba(205, 224, 47, .35); animation: harvesta-pulse 5s ease-in-out infinite; }
+.motion-orb-one { left: 42%; top: 42%; }
+.motion-orb-two { right: 28%; top: 20%; animation-delay: -2s; transform: scale(.7); }
+@keyframes harvesta-float { 0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); } 50% { transform: translate3d(0, 12px, 0) rotate(4deg); } }
+@keyframes harvesta-pulse { 0%, 100% { opacity: .55; transform: scale(.85); } 50% { opacity: 1; transform: scale(1.1); } }
+@media (prefers-reduced-motion: reduce) { .motion-ring, .motion-orb { animation: none; } }
+@media (max-width: 640px) { .motion-ring-one { width: 260px; height: 260px; left: 18%; top: -40px; } .motion-ring-two { width: 170px; height: 170px; right: -30px; top: 30%; } }

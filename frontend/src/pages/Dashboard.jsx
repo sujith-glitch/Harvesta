@@ -28,6 +28,7 @@ import LostAreaIndexCard from '../components/widgets/LostAreaIndexCard';
 import SoilMoistureCard from '../components/widgets/SoilMoistureCard';
 import FarmerPersonaCard from '../components/widgets/FarmerPersonaCard';
 import ChatWidget from '../components/widgets/ChatWidget';
+import DashboardMotionLayer from '../components/DashboardMotionLayer';
 import RealWeatherForm from '../components/RealWeatherForm';
 import FieldInputForm from '../components/FieldInputForm';
 import FieldAnalysisResultCard from '../components/FieldAnalysisResultCard';
@@ -363,6 +364,7 @@ export function Dashboard({ user, onLogout, onNavigate, view = 'overview', analy
       {loadError && <div className="page-shell"><p className="alert-h error" role="alert">{loadError}</p></div>}
       {view === 'overview' && <>
       {/* ============ HERO AERIAL MAP SECTION ============ */}
+      <DashboardMotionLayer>
       <DashboardTapSurface zoom={mapZoom}>
         <div className="page-shell" style={{ paddingTop: 0, paddingBottom: 0, position: 'relative', zIndex: 2 }}>
           {/* Top bar */}
@@ -482,6 +484,7 @@ export function Dashboard({ user, onLogout, onNavigate, view = 'overview', analy
           <button type="button" aria-label="Zoom background out" disabled={mapZoom <= 1} onClick={() => setMapZoom((zoom) => Math.max(1, zoom - 0.25))}><ZoomOut size={16} /></button>
         </div>
       </DashboardTapSurface>
+      </DashboardMotionLayer>
 
       {/* ============ ANALYTICS GRID — 3 cards ============ */}
       <section className="page-shell" style={{ paddingTop: 28, paddingBottom: 32 }}>
