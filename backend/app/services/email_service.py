@@ -6,6 +6,9 @@ Supports Gmail SMTP (smtp.gmail.com:587) with STARTTLS encryption.
 import os
 import smtplib
 import logging
+import json
+import urllib.request
+import urllib.error
 from email.utils import formataddr, formatdate, make_msgid
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -26,6 +29,21 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 class EmailService:
+    @classmethod
+    def _send_via_resend(cls, config: Dict[str, str], to_email: str, subject: str, html_content: str) -> bool:
+        api_key = os.getenv("RESEND_API_KEY", "").strip()
+        if not api_key:
+            return False
+        sender = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev").strip()
+        payload = json.dumps({"from": f"{config['from_name']} <{sender}>", "to": [to_email], "subject": subject, "html": html_content}).encode()
+        request = urllib.request.Request("https://api.resend.com/emails", data=payload, headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, method="POST")
+        try:
+            with urllib.request.urlopen(request, timeout=15) as response:
+                return 200 <= response.status < 300
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as error:
+            logger.error("Failed to send email via Resend: %s", error)
+            return False
+
     @staticmethod
     def _smtp_connection(config: Dict[str, str]):
         """Use implicit TLS on 465 or STARTTLS on 587 for hosted SMTP."""
@@ -174,6 +192,9 @@ class EmailService:
         )
         msg = cls._build_message(config, to_email, subject, plain_text, html_content)
 
+        if cls._send_via_resend(config, to_email, subject, html_content):
+            return True
+
         # Skip actual SMTP connection if username or password is not configured (offline / testing mode)
         if not cls.delivery_enabled() or not config["username"] or not config["password"]:
             logger.warning(f"[OFFLINE MODE] SMTP credentials not set in backend/.env. Simulated email to '{to_email}'. Password Reset Link requested.")
@@ -244,6 +265,9 @@ class EmailService:
             "It expires in 10 minutes. Do not share it with anyone."
         )
         msg = cls._build_message(config, to_email, subject, plain_text, html_content)
+
+        if cls._send_via_resend(config, to_email, subject, html_content):
+            return True
 
         # Skip actual SMTP connection if username or password is not configured (offline / testing mode)
         if not cls.delivery_enabled() or not config["username"] or not config["password"]:
@@ -337,6 +361,9 @@ class EmailService:
             f"Open Harvesta: {config['frontend_url']}"
         )
         msg = cls._build_message(config, to_email, subject, plain_text, html_content)
+
+        if cls._send_via_resend(config, to_email, subject, html_content):
+            return True
 
         if not cls.delivery_enabled() or not config["username"] or not config["password"]:
             logger.warning(f"[OFFLINE MODE] SMTP credentials not set in backend/.env. Simulated alert email to '{to_email}': {title}")
