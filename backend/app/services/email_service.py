@@ -27,6 +27,13 @@ logger = logging.getLogger(__name__)
 
 class EmailService:
     @staticmethod
+    def _smtp_connection(config: Dict[str, str]):
+        """Use implicit TLS on 465 or STARTTLS on 587 for hosted SMTP."""
+        if int(config["port"]) == 465:
+            return smtplib.SMTP_SSL(config["host"], config["port"], timeout=10)
+        return smtplib.SMTP(config["host"], config["port"], timeout=10)
+
+    @staticmethod
     def delivery_enabled() -> bool:
         """Allow automated tests and local-only installs to disable outbound SMTP."""
         return os.getenv("SMTP_DELIVERY_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
@@ -173,10 +180,11 @@ class EmailService:
             return True
 
         try:
-            with smtplib.SMTP(config["host"], config["port"], timeout=10) as server:
+            with cls._smtp_connection(config) as server:
                 server.ehlo()
-                server.starttls()
-                server.ehlo()
+                if int(config["port"]) != 465:
+                    server.starttls()
+                    server.ehlo()
                 server.login(config["username"], config["password"])
                 server.sendmail(config["from_email"], [to_email], msg.as_string())
                 logger.info(f"Successfully dispatched password reset email to {to_email}")
@@ -243,10 +251,11 @@ class EmailService:
             return True
 
         try:
-            with smtplib.SMTP(config["host"], config["port"], timeout=10) as server:
+            with cls._smtp_connection(config) as server:
                 server.ehlo()
-                server.starttls()
-                server.ehlo()
+                if int(config["port"]) != 465:
+                    server.starttls()
+                    server.ehlo()
                 server.login(config["username"], config["password"])
                 server.sendmail(config["from_email"], [to_email], msg.as_string())
                 logger.info(f"Successfully dispatched verification email to {to_email}")
@@ -334,10 +343,11 @@ class EmailService:
             return True
 
         try:
-            with smtplib.SMTP(config["host"], config["port"], timeout=10) as server:
+            with cls._smtp_connection(config) as server:
                 server.ehlo()
-                server.starttls()
-                server.ehlo()
+                if int(config["port"]) != 465:
+                    server.starttls()
+                    server.ehlo()
                 server.login(config["username"], config["password"])
                 server.sendmail(config["from_email"], [to_email], msg.as_string())
                 logger.info(f"Successfully dispatched alert email to {to_email}: {title}")
